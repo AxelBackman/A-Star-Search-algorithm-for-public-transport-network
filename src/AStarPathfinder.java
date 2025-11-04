@@ -4,7 +4,7 @@ public class AStarPathfinder {
 	
 	private static final int MIN_TRANSFER_TIME = 3;
 	private static final double MAX_SPEED = 15.0;
-	
+	private static final int TRANSFER_PENALTY_MIN = 5;
 	
 	/**
 	 * Implements the A* search algorithm to find the shortest path in SL public transport network. 
@@ -40,40 +40,37 @@ public class AStarPathfinder {
 	        }
 	        
 	        int currentArrivalTime = bestTime.get(currentStop);
+			double currentG = gScoreMap.getOrDefault(currentStop, Double.MAX_VALUE);
 
 	        for (Edge edge : adjList.getOrDefault(currentStop, Collections.emptyList())) {
 	            Stop neighbor = edge.getDestination();
 	            Edge previousEdge = cameFrom.get(currentStop);
 	            
-	            if (edge.getHeadSign().equals("Walk")) {
-	                if (previousEdge != null) {
-	                    int previousEdgeArrivalTime = previousEdge.getDestinationArrivalTime();
-	                    int walkDepartureTime = Math.max(currentArrivalTime, previousEdgeArrivalTime);
-	                    edge.setDepartureTime(walkDepartureTime);
-	                    edge.setArrivalTime(walkDepartureTime + edge.getWeight());
-	                }
-	            }
-	            
 	            boolean isSameLine = (previousEdge != null && previousEdge.getTripId().equals(edge.getTripId()));
 	            
-	            if (isSameLine || edge.getFromDepartureTime() >= currentArrivalTime + MIN_TRANSFER_TIME) { 
-	                int newTime = edge.getDestinationArrivalTime();
+				if (!(isSameLine || edge.getFromDepartureTime() >= currentArrivalTime + MIN_TRANSFER_TIME)) {
+                	continue;
+            	}
 
-	                if (bestTime.containsKey(neighbor) && newTime >= bestTime.get(neighbor)) {
-	                    continue;
-	                }
+				int newTime = edge.getDestinationArrivalTime();
+				int travelTimeOnEdge = newTime - currentArrivalTime;
+				int transferPenalty = (!isSameLine ? TRANSFER_PENALTY_MIN : 0);
 
-	                bestTime.put(neighbor, newTime);
-	                cameFrom.put(neighbor, edge);
+				double newGScore = currentG + travelTimeOnEdge + transferPenalty;
+				double oldBestGScore = gScoreMap.getOrDefault(neighbor, Double.POSITIVE_INFINITY);
+
+				if (newGScore >= oldBestGScore) {
+					continue;
+				}
+
+	            bestTime.put(neighbor, newTime);
+	            cameFrom.put(neighbor, edge);
 	                
-	                double gScore = newTime - currentTime;
-	                double fScore = gScore + calculateHeuristic(neighbor, goal);
+	            double fScore = newGScore + calculateHeuristic(neighbor, goal);
+	            gScoreMap.put(neighbor, newGScore);
+	            fScoreMap.put(neighbor, fScore);
+	            openSet.add(neighbor);
 
-	                gScoreMap.put(neighbor, gScore);
-	                fScoreMap.put(neighbor, fScore);
-
-	                openSet.add(neighbor);
-	            }
 	        }
 	    }
 	    return null;
